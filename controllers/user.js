@@ -1,8 +1,13 @@
 const router = require("express").Router();
-const mongoose = require("mongoose");
-const authMiddleware = require("../middlewares/auth");
+// const mongoose = require("mongoose");
+// const authMiddleware = require("../middlewares/auth");
+const nodemailer = require('nodemailer');
+const EMAIL_CONFIG = require('./config/mail/smtp');
+const hbs = require('nodemailer-express-handlebars');
+const path = require('path');
 
-const User = mongoose.model("User");
+
+// const User = mongoose.model("User");
 
 router.post("/register", async (req, res) => {
   const { email, username } = req.body;
@@ -19,6 +24,53 @@ router.post("/register", async (req, res) => {
     return res.status(400).json({ error: "Falha ao registrar usuário." });
   }
 });
+
+router.post('/cotacao', (req, res) => {
+  const { email, message, name } = req.body;
+  res.json(sendEMail(email, message, name));
+
+})
+
+async function sendEMail(email, message, name) {
+
+  const transporter = nodemailer.createTransport({
+      host: EMAIL_CONFIG.host,
+      port: EMAIL_CONFIG.port,
+      secure: false,
+      auth: {
+          user: EMAIL_CONFIG.user,
+          pass: EMAIL_CONFIG.pass
+      },
+      tls: {
+        rejectUnauthorized: false
+      }
+  });
+
+  transporter.use('compile', hbs({
+    viewEngine: {
+      // extName: '.handlebars',
+      defaultLayout: undefined,
+      partialsDir: path.resolve('./controllers/views/')
+    },
+    viewPath: path.resolve('./controllers/views/'),
+    extName: '.handlebars'
+  }))
+
+  const mailOptions = {
+    from: '"techbizsolucoes@gmail.com" <techbizsolucoes@gmail.com>',
+    to: email,
+    subject: 'Proposta Comercial',
+    template: 'index',
+    context: {
+      name,
+      message,
+      email
+    }
+  };
+  
+  const sendMail = await transporter.sendMail(mailOptions);
+  return 'enviado';
+}
 
 router.post("/authenticate", async (req, res) => {
   try {
@@ -43,7 +95,7 @@ router.post("/authenticate", async (req, res) => {
   }
 });
 
-router.use(authMiddleware);
+// router.use(authMiddleware);
 
 router.get("/me", async (req, res) => {
   try {
